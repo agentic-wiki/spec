@@ -158,7 +158,7 @@ Why a tool at all: `grep` cannot compute a link graph (orphans, backlinks, unres
 
 A single static Go binary, zero runtime dependencies, native on macOS, Linux, and Windows. It indexes a bundle and answers structured queries (`list`/`search` with `--type/--tag/--prefix`), introspects the vocabulary (`tags`, `properties`, `property`), reports the link graph (`links`, `backlinks`, `unresolved`, `orphans`), lists tasks, canonicalizes links and filenames (`tidy`), and safely refactors (`move` rewrites every link to a relocated entry). Output as text, JSON, CSV, or TSV.
 
-**Exit codes:** `0` when results are found, `1` when no results match (not an error — e.g., empty inbox, no orphans), `2` on actual errors. Treat exit `1` as normal "none found."
+**Exit codes:** `0` on success: enumeration and diagnostic commands (`list`, `tasks`, `orphans`, `unresolved`, …). `1` is a meaningful negative from exactly two commands: `search` with no match (like `grep`) and `check` with conformance errors (like a linter). `2` on actual errors (missing bundle, bad arguments, unreadable file).
 
 `wiki check` is an opt-in lint (broken links, missing or unknown types, depth, slug, `okf_version` drift, `timestamp` format), **not an OKF gate**: a bundle that does not pass `check` can still be valid OKF. `wiki init` scaffolds a conformant bundle from an embedded starter, so the tool is its own template generator and there is no template-versus-spec drift.
 

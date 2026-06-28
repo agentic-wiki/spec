@@ -1,7 +1,7 @@
 ---
 type: task
 title: Publish to the agentic-wiki org
-status: in-progress
+status: done
 priority: low
 tags: [ecosystem, release]
 ---
