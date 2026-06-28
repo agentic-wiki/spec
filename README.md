@@ -131,8 +131,8 @@ Standard markdown links can be **root-absolute** from the bundle root, `[Income]
 
 They are **not concept documents**: no frontmatter, exempt from the `type` requirement, and skipped by `wiki orphans` (they are entry points or side-narratives).
 
-- **`index.md`**: progressive-disclosure navigation for its folder (a list of links). Agents and humans read indexes top-down and follow links rather than grepping blindly. `wiki.toml`'s `spec` is the source of truth, and `wiki check` flags any drift between them.
-- **`log.md`**: an append-only chronological changelog or narrative (what happened in this area over time), with ISO `YYYY-MM-DD` date headings. This is *not* data.
+- **`index.md`**: progressive-disclosure navigation for its folder (a list of links). Agents and humans read indexes top-down and follow links rather than grepping blindly.
+- **`log.md`** _(optional)_: an append-only chronological changelog or narrative (what happened in this area over time), with ISO `YYYY-MM-DD` date headings. This is *not* data. Create it only when a domain benefits from an audit trail; it is not mandatory. `wiki check` and `wiki orphans` skip it.
 
 ### Datasets, logs, and tasks
 
@@ -140,17 +140,25 @@ Three different things, often confused:
 
 - **Dataset** (`type: dataset`): tabular or time-series source data (flights, expenses, activity). **One dataset per file equals one table** (the header row names the fields); keep small data inline as a markdown table, and point `resource:` at an external CSV/sqlite for large data. Multiple datasets are multiple files, so extraction is never ambiguous.
 - **`log.md`**: a changelog or narrative, not data (see Reserved files).
-- **Tasks**: an inline `- [ ]` checkbox is the default, and most tasks stay inline. Promote one to a `type: task` entry only when it carries context an inline line cannot capture (a multi-step plan, a blocked or `due` status, links to its domain); not every entry needs subtasks. The work-kind (feature, bug, debt, chore) is a **tag**. The active list is a *board*: an `index.md` (or a `todo.md`) of checkboxes that link to the detailed entries. Tooling surfaces both forms (`wiki tasks` for checkboxes, `wiki list --type task` for entries). Your workflow may decide to use only one type or the other, the tool is not prescriptive.
+- **Tasks**: an inline `- [ ]` checkbox is the default, and most tasks stay inline. Promote one to an entry with `type: task` when it carries context an inline line cannot capture (a multi-step plan, a blocked or `due` status, links to other entries); not every entry needs subtasks. The work-kind (feature, bug, debt, chore) is a **tag**. The active list is a *board*: an `index.md` (or a `todo.md`) of checkboxes that link to the detailed entries.
+
+  **Sync invariant**: when a task entry carries a `status` frontmatter field, the board's checkbox for that entry is checked exactly when `status` is `done`. Update both in the same change so the board never goes stale. `wiki tasks` surfaces open checkboxes; `wiki list --type task` lists all task entries regardless of checkbox state.
+
+  **Pruning**: the board is a short-lived working surface; task entries are working records. When work ships, its lasting value is captured in `log.md` (a dated summary) or promoted to a permanent KB entry. The task file itself can then be deleted: it served its purpose. Your workflow may decide to use only checkboxes, only entries, or both; the tool is not prescriptive.
 
 ### Folders
 
-Prefer a shallow **domain → subdomain** shape: two levels recommended, no hard cap (`wiki check` warns past three). The exact buckets are yours to choose; the shape is the point. Coarse scoping is the folder's job; cross-cutting retrieval is the job of tags and links.
+Prefer a shallow **domain → subdomain** shape: 2-3 levels recommended, no hard cap (`wiki check` warns past three). The exact buckets are yours to choose. Coarse scoping is the folder's job; cross-cutting retrieval is the job of tags and links.
+
+Folder names and entry filenames use **slugs**: lowercase, hyphenated words, no spaces, no underscores. `wiki check` warns on non-slug names; `wiki tidy --slug` rewrites them.
 
 ## The tool (`wiki`)
 
 Why a tool at all: `grep` cannot compute a link graph (orphans, backlinks, unresolved) or answer structured frontmatter queries (by `type`/`tag`/field), and an agent would burn a lot of tokens reading content every time, of which only a fraction might be relevant. `wiki` is the deterministic engine in between: every query, move, and check is exact and repeatable, so an agent runs your base with the reliability of a database, not the guesswork of a prompt.
 
-A single static Go binary, zero runtime dependencies, native on macOS, Linux, and Windows. It indexes a bundle and answers structured queries (`list`/`search` with `--type/--tag/--prefix`), introspects the vocabulary (`tags`, `properties`, `property`), reports the link graph (`links`, `backlinks`, `unresolved`, `orphans`), lists tasks, canonicalizes links and filenames (`tidy`), and safely refactors (`move` rewrites every link to a relocated entry). Output as text, JSON, CSV, or TSV; exit codes `0`/`1`/`2`. See the [wiki repo](https://github.com/agentic-wiki/wiki) for the full command reference.
+A single static Go binary, zero runtime dependencies, native on macOS, Linux, and Windows. It indexes a bundle and answers structured queries (`list`/`search` with `--type/--tag/--prefix`), introspects the vocabulary (`tags`, `properties`, `property`), reports the link graph (`links`, `backlinks`, `unresolved`, `orphans`), lists tasks, canonicalizes links and filenames (`tidy`), and safely refactors (`move` rewrites every link to a relocated entry). Output as text, JSON, CSV, or TSV.
+
+**Exit codes:** `0` when results are found, `1` when no results match (not an error — e.g., empty inbox, no orphans), `2` on actual errors. Treat exit `1` as normal "none found."
 
 `wiki check` is an opt-in lint (broken links, missing or unknown types, depth, slug, `okf_version` drift, `timestamp` format), **not an OKF gate**: a bundle that does not pass `check` can still be valid OKF. `wiki init` scaffolds a conformant bundle from an embedded starter, so the tool is its own template generator and there is no template-versus-spec drift.
 
@@ -158,7 +166,7 @@ A single static Go binary, zero runtime dependencies, native on macOS, Linux, an
 
 The operating manuals an agent follows to drive `wiki`, defined once and surfaced per runtime, living in the [skills repo](https://github.com/agentic-wiki/skills). They encode the mental framework (the judgment the tool cannot make) and the data lifecycle. The format stays neutral; all workflow opinion lives here. Two ship today:
 
-- **agentic-wiki**: operating a knowledge base, as a lifecycle whose stages chain across sessions: **capture** a rough thought as a `type: draft` entry in `inbox/`; **refine** it by reading it back and asking what is missing; **promote** it (real `type`, `wiki move` into its domain, link it in); then **index**, **retrieve**, and **maintain** (`check`, `tidy`, groom orphans and stale entries). Already fully formed? Skip the inbox and create the entry directly.
+- **agentic-wiki**: operating a knowledge base. A set of independent operations the agent can enter at any point — **capture** a rough thought as a `type: draft` in `inbox/`; **refine** it by reading it back and sharpening; **promote** it (real `type`, `wiki move` into its domain, link it in); **retrieve** (search, list, follow links); **groom** (`check`, `tidy`, cross-link, groom orphans). A session might do just one of these, or chain several. Already fully formed? Skip the inbox and create directly.
 - **agentic-backlog**: operating a task backlog that is itself a wiki bundle, with the entry `status` and its board checkbox kept in sync. Bring your own UI or agent on top.
 
 The inbox can be a live queue of `type: draft` entries, so `wiki list --type draft` is the to-refine list; an item leaves the queue the moment it is promoted. A binary in flight (a PDF) can sit in a gitignored `inbox/resources/`, pointed at by the draft's `resource:`.
