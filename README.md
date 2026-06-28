@@ -159,7 +159,7 @@ A single static Go binary, zero runtime dependencies, native on macOS, Linux, an
 The operating manuals an agent follows to drive `wiki`, defined once and surfaced per runtime, living in the [skills repo](https://github.com/agentic-wiki/skills). They encode the mental framework (the judgment the tool cannot make) and the data lifecycle. The format stays neutral; all workflow opinion lives here. Two ship today:
 
 - **agentic-wiki**: operating a knowledge base, as a lifecycle whose stages chain across sessions: **capture** a rough thought as a `type: draft` entry in `inbox/`; **refine** it by reading it back and asking what is missing; **promote** it (real `type`, `wiki move` into its domain, link it in); then **index**, **retrieve**, and **maintain** (`check`, `tidy`, groom orphans and stale entries). Already fully formed? Skip the inbox and create the entry directly.
-- **wiki-tasks**: operating a task backlog that is itself a wiki bundle, with the entry `status` and its board checkbox kept in sync. Bring your own UI or agent on top.
+- **agentic-backlog**: operating a task backlog that is itself a wiki bundle, with the entry `status` and its board checkbox kept in sync. Bring your own UI or agent on top.
 
 The inbox can be a live queue of `type: draft` entries, so `wiki list --type draft` is the to-refine list; an item leaves the queue the moment it is promoted. A binary in flight (a PDF) can sit in a gitignored `inbox/resources/`, pointed at by the draft's `resource:`.
 
