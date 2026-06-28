@@ -138,7 +138,7 @@ They are **not concept documents**: no frontmatter, exempt from the `type` requi
 
 Three different things, often confused:
 
-- **Dataset** (`type: dataset`): tabular or time-series source data (flights, expenses, activity). **One dataset per file equals one table** (the header row names the fields); keep small data inline as a markdown table, and point `resource:` at an external CSV/sqlite for large data. Multiple datasets are multiple files, so extraction is never ambiguous.
+- **Dataset** (`type: dataset`): tabular or time-series source data (flights, expenses, activity). **One dataset per file equals one table** (the header row names the fields); keep small data inline as a markdown table (`wiki table` extracts it as csv/json), and point `resource:` at an external CSV/sqlite for large data. Multiple datasets are multiple files, so extraction is never ambiguous.
 - **`log.md`**: a changelog or narrative, not data (see Reserved files).
 - **Tasks**: an inline `- [ ]` checkbox is the default, and most tasks stay inline. Promote one to an entry with `type: task` when it carries context an inline line cannot capture (a multi-step plan, a blocked or `due` status, links to other entries); not every entry needs subtasks. The work-kind (feature, bug, debt, chore) is a **tag**. The active list is a *board*: an `index.md` (or a `todo.md`) of checkboxes that link to the detailed entries.
 
@@ -158,7 +158,7 @@ Why a tool at all: `grep` cannot compute a link graph (orphans, backlinks, unres
 
 A single static Go binary, zero runtime dependencies, native on macOS, Linux, and Windows. It indexes a bundle and answers structured queries (`list`/`search` with `--type/--tag/--prefix`), introspects the vocabulary (`tags`, `properties`, `property`), reports the link graph (`links`, `backlinks`, `unresolved`, `orphans`), lists tasks, canonicalizes links and filenames (`tidy`), and safely refactors (`move` rewrites every link to a relocated entry). Output as text, JSON, CSV, or TSV.
 
-**Exit codes:** `0` on success: enumeration and diagnostic commands (`list`, `tasks`, `orphans`, `unresolved`, …). `1` is a meaningful negative from exactly two commands: `search` with no match (like `grep`) and `check` with conformance errors (like a linter). `2` on actual errors (missing bundle, bad arguments, unreadable file).
+**Exit codes:** `0` on success: enumeration and diagnostic commands (`list`, `tasks`, `orphans`, `unresolved`, …). `1`: `search` with no match (like `grep`), `table` with no such table, and `check` with conformance errors (like a linter). `2` on actual errors (missing bundle, bad arguments, unreadable file).
 
 `wiki check` is an opt-in lint (broken links, missing or unknown types, depth, slug, `okf_version` drift, `timestamp` format), **not an OKF gate**: a bundle that does not pass `check` can still be valid OKF. `wiki init` scaffolds a conformant bundle from an embedded starter, so the tool is its own template generator and there is no template-versus-spec drift.
 
