@@ -1,7 +1,7 @@
 ---
 type: task
 title: Skill repo
-status: in-progress
+status: done
 priority: medium
 tags: [skills, tooling]
 ---
