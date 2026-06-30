@@ -123,6 +123,8 @@ The list is a starting vocabulary, not a mandate: extend or replace it in `wiki.
 
 Standard markdown links can be **root-absolute** from the bundle root, `[Income](/finance/income.md)` (canonical, and preferred for readability and stability), or **relative**, `[a](./other.md)` (resolved against the file's directory). No wikilinks.
 
+If you use Obsidian, set it to write standard markdown links: Settings → Files and links → turn off **Use [[Wikilinks]]**, set **New link format** to *Absolute path in vault*, turn on **Automatically update internal links**. Otherwise it emits `[[wikilinks]]`, which neither the format nor `wiki` recognizes, so those links silently vanish from the graph.
+
 `wiki tidy --links` rewrites relative links to root-absolute. A broken link (target not in the bundle) is not malformed, it may be not-yet-written knowledge, so consumers tolerate it; `wiki check` and `wiki unresolved` surface them as a courtesy.
 
 `resource:` is a frontmatter pointer, never a body link, and is not treated as an internal link. Entry filenames are slugs (lowercase, hyphenated, no spaces) so links stay simple bare paths; `wiki check` warns on a space in a path. (`wiki` does resolve `<…>`-wrapped links, markdown's way to allow a space, but `wiki check` still flags the spaced filename; `wiki tidy --slug` renames it to a slug, and naming files as slugs from the start avoids it.)
