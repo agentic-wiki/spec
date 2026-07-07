@@ -73,9 +73,11 @@ my-kb/                       # the bundle root == the content root
   ```toml
   spec = "0.1"
   types = ["note", "concept", "entity", "event", "tool", "project", "task", "dataset", "source", "draft"]
+  skip = ["AGENTS.md", "CLAUDE.md", "WORKFLOW.md"]   # optional: paths that are not content entries
   ```
+  The optional **`skip`** list names paths (relative to the bundle root) that are *not* content: agent-operating files like `AGENTS.md`/`CLAUDE.md`/`WORKFLOW.md`, a `README`, a `LICENSE`. A `skip` path inside the bundle is left out of the index (see Content); a `skip` path resolving outside it acknowledges an out-of-bundle reference (see Links).
 - **`.wiki/`** is a disposable per-bundle cache, the same idea as `.git`: local, never committed, rebuildable.
-- **Content** is every `.md` file under the bundle root. The scanner indexes only markdown and skips hidden directories, so the cache (`.wiki/`) and any viewer artifacts (`.obsidian/`) never become entries. Hand someone the bundle and they hold a clean, self-contained knowledge base; Obsidian opens it as a vault (configure markdown links and absolute-path-in-vault).
+- **Content** is every `.md` file under the bundle root. The scanner indexes only markdown, skips hidden directories, and skips any path listed in `wiki.toml`'s `skip`, so the cache (`.wiki/`), viewer artifacts (`.obsidian/`), and declared non-entries (`AGENTS.md`, a `README`) never become entries — absent from `list`/`search`/the graph and raising no `check` issue, though a link *to* a skipped file still resolves on disk and so is not broken. Hand someone the bundle and they hold a clean, self-contained knowledge base; Obsidian opens it as a vault (configure markdown links and absolute-path-in-vault).
 
 ### Entries and frontmatter
 
@@ -125,7 +127,7 @@ Standard markdown links can be **root-absolute** from the bundle root, `[Income]
 
 If you use Obsidian, set it to write standard markdown links: Settings → Files and links → turn off **Use [[Wikilinks]]**, set **New link format** to *Absolute path in vault*, turn on **Automatically update internal links**. Otherwise it emits `[[wikilinks]]`, which neither the format nor `wiki` recognizes, so those links silently vanish from the graph.
 
-`wiki tidy --links` rewrites relative links to root-absolute. A broken link (target not in the bundle) is not malformed, it may be not-yet-written knowledge, so consumers tolerate it; `wiki check` and `wiki unresolved` surface them as a courtesy.
+`wiki tidy --links` rewrites relative links to root-absolute. A broken link (target not in the bundle) is not malformed, it may be not-yet-written knowledge, so consumers tolerate it; `wiki check` and `wiki unresolved` surface them as a courtesy. A link that resolves *outside* the bundle (climbing above the root, e.g. `../PRD.md` from a nested bundle) is neither an edge nor broken; `wiki check` notes it as an out-of-bundle advisory, and listing that path in `wiki.toml`'s `skip` silences it. Such a path is never resolved on disk (the containment guard that also blocks path traversal).
 
 `resource:` is a frontmatter pointer, never a body link, and is not treated as an internal link. Entry filenames are slugs (lowercase, hyphenated, no spaces) so links stay simple bare paths; `wiki check` warns on a space in a path. (`wiki` does resolve `<…>`-wrapped links, markdown's way to allow a space, but `wiki check` still flags the spaced filename; `wiki tidy --slug` renames it to a slug, and naming files as slugs from the start avoids it.)
 
