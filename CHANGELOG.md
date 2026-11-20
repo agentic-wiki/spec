@@ -4,7 +4,7 @@ Changes to the format. A bundle declares the version it follows with `spec = "â€
 
 ## 0.1, 2026-11-20
 
-The spec brought in line with `wiki` v0.18.0. It also states one rule that `wiki` follows from v0.19.0: `ignore` patterns that match nothing. Two more come in a later release: nested bundles, and `tidy --slug` on folder names. Each is marked in the README. Still version 0.1: no bundle that conformed before stops conforming.
+The spec brought in line with `wiki` v0.18.0. It also states one rule that `wiki` follows from v0.19.0: `ignore` patterns that match nothing, and two from v0.20.0: dot files are not content, and neither is a link to a file outside the bundle or on a dot path. Two more come in a later release: nested bundles, and `tidy --slug` on folder names. Each is marked in the README. Still version 0.1: no bundle that conformed before stops conforming.
 
 ### Added
 
@@ -20,6 +20,8 @@ The spec brought in line with `wiki` v0.18.0. It also states one rule that `wiki
 
 ### Changed
 
+- **Dot files are not content**, as hidden folders already weren't: a path with any segment starting with `.` (`.notes.md`, `a/.hidden.md`) is never an entry (`wiki` v0.20.0 and later).
+- **A link to a file that isn't content is not content**: a `.md` whose real file, symlinks resolved, is outside the bundle or on a dot path (a link to `~/.bashrc` or to `.git/config`) is never an entry (`wiki` v0.20.0 and later).
 - **Nested bundles:** a folder holding its own `wiki.toml` is a separate bundle, and the bundle around it skips it (a later release of `wiki`). Its files stop being entries of the outer bundle, and a link into it is read like a link to an ignored file.
 - **Links are relative** to the linking file in their canonical form, as `wiki` writes them since v0.7.0 (it was root-absolute). Obsidian's link format is *Relative path to file*.
 - **Slugs are recommended, not required.** The rule is no spaces in a path, which `wiki tidy --slug` fixes in folder names too from a later release of `wiki`.
