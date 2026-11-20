@@ -22,6 +22,8 @@ A plain folder, though, is dumb: `grep` cannot tell you what links to a page, wh
 
 ## The format
 
+This is version **0.1** of the format: a bundle declares it with `spec = "0.1"` in its `wiki.toml`. Changes are listed in [CHANGELOG.md](CHANGELOG.md).
+
 ### The mental framework
 
 Three orthogonal axes classify every entry. Keeping them separate is what keeps the system friction-free.
@@ -47,7 +49,7 @@ A knowledge base is a **bundle**: a directory marked by a `wiki.toml` file, with
 ```
 my-kb/                       # the bundle root == the content root
 ├── wiki.toml                # marker + config (tracked)
-├── .wiki/                   # query cache/index (gitignored, rebuilt on demand)
+├── .wiki/                   # reserved for a local cache (gitignored)
 ├── .gitignore
 ├── index.md                 (home page, links into each domain)
 ├── finance/
@@ -65,13 +67,14 @@ my-kb/                       # the bundle root == the content root
 ├── sources/
 │   └── okf-spec.md          (type: source)
 └── tasks/
-    ├── index.md             (the board)
+    ├── index.md             (the task list)
     └── renew-passport.md    (type: task)
 ```
 
 - **`wiki.toml`** (tracked) marks the bundle root. The CLI walks up from the working directory to find it, the same way git finds `.git`. It holds the bundle's config: see [`wiki.toml`](#wikitoml).
-- **`.wiki/`** is a disposable per-bundle cache, the same idea as `.git`: local, never committed, rebuildable.
-- **Content** is every `.md` file under the bundle root. The scanner indexes only markdown, skips hidden directories, and skips any path matched by `wiki.toml`'s `ignore`, so the cache (`.wiki/`), viewer artifacts (`.obsidian/`), and declared non-entries (`AGENTS.md`, a `README`) never become entries — absent from `list`/`search`/the graph and raising no `check` issue, though a link *to* an ignored file still resolves on disk and so is not broken. Hand someone the bundle and they hold a clean, self-contained knowledge base; Obsidian opens it as a vault (configure markdown links and absolute-path-in-vault).
+- **`.wiki/`** is reserved for a tool's local cache, the same idea as `.git`: never committed, and safe to delete.
+- **Content** is every `.md` file under the bundle root. The scanner indexes only markdown, skips hidden directories, any folder holding its own `wiki.toml` (a nested bundle, below; `wiki` v0.19.0 and later), and any path matched by `wiki.toml`'s `ignore`, so the cache (`.wiki/`), viewer artifacts (`.obsidian/`), and declared non-entries (`AGENTS.md`, a `README`) never become entries — absent from `list`/`search`/the graph and raising no `check` issue, though a link *to* an ignored file still resolves on disk and so is not broken. Hand someone the bundle and they hold a clean, self-contained knowledge base; Obsidian opens it as a vault (set it to write standard links: see [Links](#links)).
+- **Nested bundles** (`wiki` v0.19.0 and later). A folder holding its own `wiki.toml` is a separate bundle, with its own config. The bundle around it skips that folder entirely, the way git skips a nested repository: its files are not entries of the outer bundle. For links into it, see [Links](#links).
 
 ### `wiki.toml`
 
@@ -86,12 +89,12 @@ The keys `wiki` reads:
 
 | Key | Type | Meaning |
 |---|---|---|
-| `spec` | string | The spec version the bundle follows. |
+| `spec` | string | The spec version the bundle follows. Each version embeds an OKF version (`0.1` embeds OKF `0.1`), which the root `index.md` declares as `okf_version` (see Reserved files). |
 | `types` | string[] | The allowed `type` values. Left out, any type is allowed. |
 | `ignore` | string[] | Paths that are *not* content, relative to the bundle root: agent-operating files like `AGENTS.md`, a `README`, a `LICENSE`. Inside the bundle, a match is left out of the index (see Content): an exact path, a `dir/**` subtree, or any `*`, `?` or `**` pattern. An exact path outside it (`../PRD.md`) acknowledges an out-of-bundle link (see Links). |
 | `ignore_orphans` | string[] | Entries nothing has to link to. They stay indexed, but `wiki orphans` does not report them. An exact path, a `dir/**` subtree, or any `*`, `?` or `**` pattern. |
 
-`wiki check` warns on any other key, so a typo or a renamed key never fails silently. Two kinds of keys are set aside for apps instead: `wiki` never reads inside them and never warns about them.
+`wiki check` warns on any other key, so a typo or a renamed key never fails silently. It also warns on an `ignore` or `ignore_orphans` pattern inside the bundle that matches no file (`wiki` v0.19.0 and later): `ignore = ["drafts"]` names a file, not the folder, so write `drafts/**`. Two kinds of keys are set aside for apps instead: `wiki` never reads inside them and never warns about them.
 
 **`[tool.<name>]`** is one tool's own config, as in `pyproject.toml`. The tool picks its name and its keys, and validates them itself. One file then describes the bundle, instead of a config file per tool.
 
@@ -148,7 +151,7 @@ An app that reads them:
 
 ### Entries and frontmatter
 
-Every markdown file is an entry with YAML frontmatter. The only required field is `type`, on every file.
+Every markdown file is an entry with YAML frontmatter. The only required field is `type`, on every file but the reserved ones (see Reserved files).
 
 ```markdown
 ---
@@ -169,9 +172,18 @@ A two-to-three sentence summary.
 
 Standard optional fields (OKF): `title`, `description`, `tags`, `timestamp` (ISO 8601, validated when present). This profile adds `resource`: a pointer to the specific live thing a page represents (a server console, a dataset's table), distinct from a `source`'s `url`, which is provenance.
 
+**Header layout.** Values can be any YAML: text, numbers, `true`/`false`, null, lists, nested maps, multi-line strings. The layout of the header is fixed, so any tool can change one key without rewriting the rest:
+
+- each top-level key is plain text on its own line, at column 0;
+- no flow-style header (`{type: note, title: X}`);
+- no `<<` merge keys;
+- each key written once, and the header at most 1 MiB.
+
+`wiki check` reports a header that breaks these rules as an error.
+
 ### Type vocabulary
 
-Declared in `wiki.toml` and extensible: there are no reserved *types*. `index.md`/`log.md` are reserved *filenames* with no frontmatter (see Reserved files).
+Declared in `wiki.toml` and extensible: there are no reserved *types*. `index.md`/`log.md` are reserved *filenames* with no `type` (see Reserved files).
 
 | type | For | Notable fields |
 |---|---|---|
@@ -190,20 +202,31 @@ The list is a starting vocabulary, not a mandate: extend or replace it in `wiki.
 
 ### Links
 
-Standard markdown links can be **root-absolute** from the bundle root, `[Income](/finance/income.md)` (canonical, and preferred for readability and stability), or **relative**, `[a](./other.md)` (resolved against the file's directory). No wikilinks.
+Entries link with standard markdown links. The canonical form is **relative** to the linking file, `[Income](../finance/income.md)`, so links work in any markdown viewer, GitHub included. A **root-absolute** link, `[Income](/finance/income.md)`, resolves from the bundle root and is valid too; `wiki tidy --links` rewrites it relative, and `wiki move` writes relative links.
 
-If you use Obsidian, set it to write standard markdown links: Settings → Files and links → turn off **Use [[Wikilinks]]**, set **New link format** to *Absolute path in vault*, turn on **Automatically update internal links**. Otherwise it emits `[[wikilinks]]`, which neither the format nor `wiki` recognizes, so those links silently vanish from the graph.
+Every reader resolves a link's destination the same way:
 
-`wiki tidy --links` rewrites relative links to root-absolute. A broken link (target not in the bundle) is not malformed, it may be not-yet-written knowledge, so consumers tolerate it; `wiki check` and `wiki unresolved` surface them as a courtesy. A link that resolves *outside* the bundle (climbing above the root, e.g. `../PRD.md` from a nested bundle) is neither an edge nor broken; `wiki check` notes it as an out-of-bundle advisory, and listing that path in `wiki.toml`'s `ignore` silences it. Such a path is never resolved on disk (the containment guard that also blocks path traversal).
+- its path is percent-decoded once (`my%20file.md` names `my file.md`), and a `?query` is dropped;
+- `<…>` around it is markdown's way to allow a space, and is read the same way;
+- a destination starting with a scheme (`https:`) or `//` is external, never an entry;
+- a `#anchor` names a heading of the target by its slug: lowercased, each space a `-`, letters, digits, `-` and `_` kept, anything else dropped (`## Docker Networking` is `#docker-networking`). `wiki check` warns on an anchor no heading has. An Obsidian block reference (`#^id`) is left alone.
 
-`resource:` is a frontmatter pointer, never a body link, and is not treated as an internal link. Entry filenames are slugs (lowercase, hyphenated, no spaces) so links stay simple bare paths; `wiki check` warns on a space in a path. (`wiki` does resolve `<…>`-wrapped links, markdown's way to allow a space, but `wiki check` still flags the spaced filename; `wiki tidy --slug` renames it to a slug, and naming files as slugs from the start avoids it.)
+A broken link (target not in the bundle) is not malformed, it may be not-yet-written knowledge, so consumers tolerate it; `wiki check` and `wiki unresolved` surface them as a courtesy. A link that resolves *outside* the bundle (climbing above the root, e.g. `../PRD.md` from a nested bundle) is neither an edge nor broken; `wiki check` notes it as an out-of-bundle advisory, and listing that path in `wiki.toml`'s `ignore` silences it. Such a path is never resolved on disk (the containment guard that also blocks path traversal).
+
+A link to a file inside the bundle that is not an entry, because `ignore` matches it or because it sits in a nested bundle (`wiki` v0.19.0 and later), is read like a link to an image: it resolves when the file exists on disk, so it is not broken and `wiki check` says nothing about it, but it is not an edge of the graph and its `#anchor` is not checked. When the file does not exist, it is a broken link. There is nothing to silence.
+
+**Frontmatter references.** A frontmatter value whose path ends in `.md` (`epic: /backlog/epics/search.md`, `blockers: [/backlog/login.md]`) is a reference to that entry. It is written **root-absolute**, because it is a key to match on, not a link to click: every entry that points at one epic spells it the same way, so `wiki list --where epic=/backlog/epics/search.md` finds them all. A body link is relative because it must navigate; a frontmatter reference is root-absolute because it must be a stable key. `wiki move --include-frontmatter` rewrites them too. `resource:` points at something outside the bundle and is never a link.
+
+**Wikilinks** (`[[page]]`) are not part of the format. `wiki` reads them for compatibility, the way Obsidian resolves them (with `aliases:` frontmatter), warns about them in `wiki check`, and converts them to standard links with `wiki tidy --wikilinks`. If you use Obsidian, set it to write standard links: Settings → Files and links → turn off **Use [[Wikilinks]]**, set **New link format** to *Relative path to file*, and turn on **Automatically update internal links**.
+
+Entry filenames are best written as slugs (see Folders), so links stay plain paths.
 
 ### Reserved files
 
-They are **not concept documents**: no frontmatter, exempt from the `type` requirement, and skipped by `wiki orphans` (they are entry points or side-narratives).
+They are **not concept documents**: no `type` and no other frontmatter, and `wiki orphans` never reports them (they are entry points or side-narratives). One exception: the bundle-root `index.md` carries `okf_version`, the OKF version its `spec` embeds (see `wiki.toml`). `wiki init` writes it, `wiki check` warns when it is missing or out of sync, and `wiki check --fix` writes it.
 
 - **`index.md`**: progressive-disclosure navigation for its folder (a list of links). Agents and humans read indexes top-down and follow links rather than grepping blindly.
-- **`log.md`** _(optional)_: an append-only chronological changelog or narrative (what happened in this area over time), with ISO `YYYY-MM-DD` date headings. This is *not* data. Create it only when a domain benefits from an audit trail; it is not mandatory. `wiki check` and `wiki orphans` skip it.
+- **`log.md`** _(optional)_: an append-only chronological changelog or narrative (what happened in this area over time), with ISO `YYYY-MM-DD` date headings. This is *not* data. Create it only when a domain benefits from an audit trail; it is not mandatory. `wiki check` warns on a date heading that is not ISO.
 
 ### Datasets, logs, and tasks
 
@@ -211,38 +234,50 @@ Three different things, often confused:
 
 - **Dataset** (`type: dataset`): tabular or time-series source data (flights, expenses, activity). **One dataset per file equals one table** (the header row names the fields); keep small data inline as a markdown table (`wiki table` extracts it as csv/json), and point `resource:` at an external CSV/sqlite for large data. Multiple datasets are multiple files, so extraction is never ambiguous.
 - **`log.md`**: a changelog or narrative, not data (see Reserved files).
-- **Tasks**: an inline `- [ ]` checkbox is the default, and most tasks stay inline. Promote one to an entry with `type: task` when it carries context an inline line cannot capture (a multi-step plan, a blocked or `due` status, links to other entries); not every entry needs subtasks. The work-kind (feature, bug, debt, chore) is a **tag**. The active list is a *board*: an `index.md` (or a `todo.md`) of checkboxes that link to the detailed entries.
+- **Tasks**: an inline `- [ ]` checkbox is the default, and most tasks stay inline. Promote one to an entry with `type: task` when it carries context an inline line cannot capture (a multi-step plan, a blocked or `due` status, links to other entries); not every entry needs subtasks. The work-kind (feature, bug, debt, chore) is a **tag**. The active list is a *task list*: an `index.md` (or a `todo.md`) of checkboxes that link to the detailed entries. (A *board* is a view of entries by status, declared with `[[board]]` in `wiki.toml`.)
 
-  **Sync invariant**: when a task entry carries a `status` frontmatter field, the board's checkbox for that entry is checked exactly when `status` is `done`. Update both in the same change so the board never goes stale. `wiki tasks` surfaces open checkboxes; `wiki list --type task` lists all task entries regardless of checkbox state.
+  **Sync invariant**: when a task entry carries a `status` frontmatter field, the task list's checkbox for that entry is checked exactly when `status` is `done`. Update both in the same change so the list never goes stale. `wiki checkboxes` surfaces open checkboxes; `wiki list --where type=task` lists all task entries regardless of checkbox state.
 
-  **Pruning**: the board is a short-lived working surface; task entries are working records. When work ships, its lasting value is captured in `log.md` (a dated summary) or promoted to a permanent KB entry. The task file itself can then be deleted: it served its purpose. Your workflow may decide to use only checkboxes, only entries, or both; the tool is not prescriptive.
+  **Pruning**: the task list is a short-lived working surface; task entries are working records. When work ships, its lasting value is captured in `log.md` (a dated summary) or promoted to a permanent KB entry. The task file itself can then be deleted: it served its purpose. Your workflow may decide to use only checkboxes, only entries, or both; the tool is not prescriptive.
 
 ### Folders
 
 Prefer a shallow **domain → subdomain** shape: 2-3 levels recommended, no hard cap (`wiki check` warns past three). The exact buckets are yours to choose. Coarse scoping is the folder's job; cross-cutting retrieval is the job of tags and links.
 
-Folder names and entry filenames use **slugs**: lowercase, hyphenated words, no spaces, no underscores. `wiki check` warns on non-slug names; `wiki tidy --slug` rewrites them.
+Folder names and entry filenames are best written as **slugs**: lowercase, hyphenated words. That is a recommendation, not a rule. The rule is **no spaces**, because a space breaks a plain link: `wiki check` warns on a space anywhere in a path, and `wiki tidy --slug` replaces it with hyphens: in a file name, and in a folder name too (`wiki` v0.19.0 and later).
+
+### Conformance
+
+A bundle conforms when `wiki check` reports no error. The errors are:
+
+- a file that cannot be read;
+- frontmatter that is not valid YAML, writes a key twice, or exceeds the size limits;
+- a header that breaks the header layout (see Entries and frontmatter);
+- an entry with no `type`, or with a `type` that `wiki.toml` does not declare;
+- a `timestamp` that is not ISO 8601.
+
+Everything else `wiki check` reports is a warning, advice that never fails the check. The warnings cover unknown `wiki.toml` keys and `ignore` patterns that match nothing (`wiki` v0.19.0 and later), frontmatter on a reserved file, log headings that aren't ISO dates, folders deeper than three, spaces in paths, wikilinks, broken links and anchors, out-of-bundle links, and a missing or stale `okf_version`.
+
+`wiki check` is a lint, **not an OKF gate**: a bundle that does not pass it can still be valid OKF.
 
 ## The tool (`wiki`)
 
 Why a tool at all: `grep` cannot compute a link graph (orphans, backlinks, unresolved) or answer structured frontmatter queries (by `type`/`tag`/field), and an agent would burn a lot of tokens reading content every time, of which only a fraction might be relevant. `wiki` is the deterministic engine in between: every query, move, and check is exact and repeatable, so an agent runs your base with the reliability of a database, not the guesswork of a prompt.
 
-A single static Go binary, zero runtime dependencies, native on macOS, Linux, and Windows. It indexes a bundle and answers structured queries (`list`/`search` with `--type/--tag/--prefix`), introspects the vocabulary (`tags`, `properties`, `property`), reports the link graph (`links`, `backlinks`, `unresolved`, `orphans`), lists tasks, canonicalizes links and filenames (`tidy`), and safely refactors (`move` rewrites every link to a relocated entry). Output as text, JSON, CSV, or TSV.
+A single static Go binary, zero runtime dependencies, native on macOS, Linux, and Windows. It queries entries (`list`, `search`, filtered with `--where key=value` and `--prefix`), reads them (`read`, `outline`, `table`, `dump`), introspects the vocabulary (`tags`, `properties`, `property`), reports the link graph (`links`, `backlinks`, `unresolved`, `orphans`), lists checkboxes (`checkboxes`), canonicalizes links and filenames (`tidy`), safely refactors (`move` rewrites every link to a relocated entry), and lints (`check`). `wiki init` writes a new conformant bundle from a starter embedded in the tool. Output as text, JSON, JSONL, CSV, or TSV.
 
-**Exit codes:** `0` on success: enumeration and diagnostic commands (`list`, `tasks`, `orphans`, `unresolved`, …). `1`: `search` with no match (like `grep`), `table` with no such table, and `check` with conformance errors (like a linter). `2` on actual errors (missing bundle, bad arguments, unreadable file).
-
-`wiki check` is an opt-in lint (broken links, missing or unknown types, depth, slug, `okf_version` drift, `timestamp` format), **not an OKF gate**: a bundle that does not pass `check` can still be valid OKF. `wiki init` scaffolds a conformant bundle from an embedded starter, so the tool is its own template generator and there is no template-versus-spec drift.
+Every command, flag, output column and exit code is documented in the tool's README: [Everything it does](https://github.com/agentic-wiki/wiki#everything-it-does).
 
 ## The skill
 
 The operating manuals an agent follows to drive `wiki`, defined once and surfaced per runtime, living in the [skills repo](https://github.com/agentic-wiki/skills). They encode the mental framework (the judgment the tool cannot make) and the data lifecycle. The format stays neutral; all workflow opinion lives here. Two ship today:
 
 - **agentic-wiki**: operating a knowledge base. A set of independent operations the agent can enter at any point — **capture** a rough thought as a `type: draft` in `inbox/`; **refine** it by reading it back and sharpening; **promote** it (real `type`, `wiki move` into its domain, link it in); **retrieve** (search, list, follow links); **groom** (`check`, `tidy`, cross-link, groom orphans). A session might do just one of these, or chain several. Already fully formed? Skip the inbox and create directly.
-- **agentic-backlog**: operating a task backlog that is itself a wiki bundle, with the entry `status` and its board checkbox kept in sync. Bring your own UI or agent on top.
+- **agentic-backlog**: operating a task backlog that is itself a wiki bundle, with the entry `status` and its task-list checkbox kept in sync. Bring your own UI or agent on top.
 
-The inbox can be a live queue of `type: draft` entries, so `wiki list --type draft` is the to-refine list; an item leaves the queue the moment it is promoted. A binary in flight (a PDF) can sit in a gitignored `inbox/resources/`, pointed at by the draft's `resource:`.
+The inbox can be a live queue of `type: draft` entries, so `wiki list --where type=draft` is the to-refine list; an item leaves the queue the moment it is promoted. A binary in flight (a PDF) can sit in a gitignored `inbox/resources/`, pointed at by the draft's `resource:`.
 
-**The conventions are yours.** Beyond "every file has a `type`," the format fixes almost nothing; how you work the bundle is a skill-layer choice you customize. The inbox above is one example: have one or don't. Same for boards, naming, and ingestion flow.
+**The conventions are yours.** Beyond "every file has a `type`," the format fixes almost nothing; how you work the bundle is a skill-layer choice you customize. The inbox above is one example: have one or don't. Same for task lists, naming, and ingestion flow.
 
 ## Scope
 
@@ -257,13 +292,14 @@ The inbox can be a live queue of `type: draft` entries, so `wiki list --type dra
 
 ## Status and ecosystem
 
-Three single-purpose repos, each with its own release cadence:
+Four repos, each with its own release cadence:
 
-- **`agentic-wiki/wiki`**: the CLI tool; embeds the starter so `wiki init` needs no network.
-- **`agentic-wiki/template`**: the reference bundle `wiki init` emits.
+- **`agentic-wiki/spec`**: this format definition.
+- **`agentic-wiki/wiki`**: the CLI tool; embeds the starters, so `wiki init` needs no network.
 - **`agentic-wiki/skills`**: the operating manuals, installed into an agent's skill directory, evolving independently of the tool.
+- **`agentic-wiki/wiki-shell`**: WikiShell, a web UI for a bundle: read it in a browser, follow the links, tick the checkboxes, and see its boards and graphs.
 
-The CLI is built, tested, and dogfooded. This repo dogfoods the format itself: its roadmap lives under [`tasks/`](tasks/index.md), an agentic-wiki bundle operated by `wiki` (`wiki tasks`, `wiki list --type task`, `wiki check`).
+The CLI is built, tested, and dogfooded. This repo dogfoods the format itself: its roadmap lives under [`tasks/`](tasks/index.md), an agentic-wiki bundle operated by `wiki` (`wiki checkboxes`, `wiki list --where type=task`, `wiki check`).
 
 ## Origins
 

@@ -6,4 +6,4 @@ priority: high
 tags: [wiki, tooling]
 ---
 
-The standalone Go CLI that operates bundles: discovery, the full query surface, the link graph, `move`/`tidy`, `check`, text/json/csv/tsv output, native on macOS, Linux, and Windows. Built, tested, and dogfooded. The detailed backlog (the `.wiki` cache, a few remaining query features) lives in `wiki/tasks`.
+The standalone Go CLI that operates bundles: discovery, the full query surface, the link graph, `move`/`tidy`, `check`, text/json/jsonl/csv/tsv output, native on macOS, Linux, and Windows. Built, tested, and dogfooded. The detailed backlog (a local cache, a few remaining query features) lives in the wiki repo's `backlog/`.

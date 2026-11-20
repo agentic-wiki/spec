@@ -16,7 +16,7 @@ Audited both SKILL.md files for issues that would actually trip up an agent. The
 | Exit-code semantics | Agent treated exit 1 (no match) as a failure | Documented 0 found, 1 none, 2 error. Follow-up: refining this to the ls/grep/lint convention is now tracked as a task in the wiki repo's backlog. |
 | Warnings vs staying green | Agent might block commits on informational warnings | Both skills state `wiki check` warnings are informational and never block. |
 | `resource:` vs `source:` | A live-data pointer was conflated with provenance | agentic-wiki distinguishes `resource:` (the live thing), `source` (provenance), and ordinary body links. |
-| Search semantics | Agent assumed search was a structured field query | Documented: case-insensitive substring over frontmatter and body; use `list --type/--tag` for field queries. |
+| Search semantics | Agent assumed search was a structured field query | Documented: case-insensitive substring over frontmatter and body; use `list --where` for field queries. |
 | Division of labor | Unclear what the agent does vs the tool | Both skills: the agent reads, writes, and edits Markdown; `wiki` is the deterministic engine. |
 | Merge conflicts | No guidance for git conflicts | Both skills: preserve both sides, merge frontmatter sensibly, escalate only genuine judgment calls. |
 
