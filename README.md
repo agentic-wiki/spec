@@ -69,15 +69,82 @@ my-kb/                       # the bundle root == the content root
     └── renew-passport.md    (type: task)
 ```
 
-- **`wiki.toml`** (tracked) marks the bundle root and declares config. The CLI walks up from the working directory to find it, the same way git finds `.git`. It is deliberately tiny:
-  ```toml
-  spec = "0.1"
-  types = ["note", "concept", "entity", "event", "tool", "project", "task", "dataset", "source", "draft"]
-  skip = ["AGENTS.md", "CLAUDE.md", "WORKFLOW.md"]   # optional: paths that are not content entries
-  ```
-  The optional **`skip`** list names paths (relative to the bundle root) that are *not* content: agent-operating files like `AGENTS.md`/`CLAUDE.md`/`WORKFLOW.md`, a `README`, a `LICENSE`. A `skip` path inside the bundle is left out of the index (see Content); a `skip` path resolving outside it acknowledges an out-of-bundle reference (see Links).
+- **`wiki.toml`** (tracked) marks the bundle root. The CLI walks up from the working directory to find it, the same way git finds `.git`. It holds the bundle's config: see [`wiki.toml`](#wikitoml).
 - **`.wiki/`** is a disposable per-bundle cache, the same idea as `.git`: local, never committed, rebuildable.
-- **Content** is every `.md` file under the bundle root. The scanner indexes only markdown, skips hidden directories, and skips any path listed in `wiki.toml`'s `skip`, so the cache (`.wiki/`), viewer artifacts (`.obsidian/`), and declared non-entries (`AGENTS.md`, a `README`) never become entries — absent from `list`/`search`/the graph and raising no `check` issue, though a link *to* a skipped file still resolves on disk and so is not broken. Hand someone the bundle and they hold a clean, self-contained knowledge base; Obsidian opens it as a vault (configure markdown links and absolute-path-in-vault).
+- **Content** is every `.md` file under the bundle root. The scanner indexes only markdown, skips hidden directories, and skips any path matched by `wiki.toml`'s `ignore`, so the cache (`.wiki/`), viewer artifacts (`.obsidian/`), and declared non-entries (`AGENTS.md`, a `README`) never become entries — absent from `list`/`search`/the graph and raising no `check` issue, though a link *to* an ignored file still resolves on disk and so is not broken. Hand someone the bundle and they hold a clean, self-contained knowledge base; Obsidian opens it as a vault (configure markdown links and absolute-path-in-vault).
+
+### `wiki.toml`
+
+```toml
+spec = "0.1"
+types = ["note", "concept", "entity", "event", "tool", "project", "task", "dataset", "source", "draft"]
+ignore = ["AGENTS.md", "CLAUDE.md", "WORKFLOW.md"]
+ignore_orphans = ["tasks/**"]
+```
+
+The keys `wiki` reads:
+
+| Key | Type | Meaning |
+|---|---|---|
+| `spec` | string | The spec version the bundle follows. |
+| `types` | string[] | The allowed `type` values. Left out, any type is allowed. |
+| `ignore` | string[] | Paths that are *not* content, relative to the bundle root: agent-operating files like `AGENTS.md`, a `README`, a `LICENSE`. Inside the bundle, a match is left out of the index (see Content): an exact path, a `dir/**` subtree, or any `*`, `?` or `**` pattern. An exact path outside it (`../PRD.md`) acknowledges an out-of-bundle link (see Links). |
+| `ignore_orphans` | string[] | Entries nothing has to link to. They stay indexed, but `wiki orphans` does not report them. An exact path, a `dir/**` subtree, or any `*`, `?` or `**` pattern. |
+
+`wiki check` warns on any other key, so a typo or a renamed key never fails silently. Two kinds of keys are set aside for apps instead: `wiki` never reads inside them and never warns about them.
+
+**`[tool.<name>]`** is one tool's own config, as in `pyproject.toml`. The tool picks its name and its keys, and validates them itself. One file then describes the bundle, instead of a config file per tool.
+
+```toml
+[tool.wikanban]
+group_by = "status"
+```
+
+**`[[board]]` and `[[graph]]`** are views that any app may show. Each table names a view over one folder.
+
+```toml
+[[board]]
+id      = "board"
+path    = "/tasks"
+where   = ["type=task"]
+columns = ["todo", "in-progress", "done"]
+lane    = "priority"
+
+[[graph]]
+id         = "people"
+path       = "/people"
+where      = ["type=entity"]
+neighbours = true
+```
+
+A `[[board]]` shows the entries under a folder as cards in columns:
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | string | yes | The board's name in addresses: lowercase letters, digits, `_` and `-`, starting with a letter or a digit (`^[a-z0-9][a-z0-9_-]*$`). Unique among boards. |
+| `path` | string | yes | The folder, from the bundle root (`/tasks`; `/` is the whole bundle). Cards are the entries anywhere under it. |
+| `name` | string | no | The title on screen. Left out, the app names it from the folder. |
+| `where` | string[] | no | Filters, in `wiki list --where` spelling, all must match. Left out: `["type=task"]`. `[]`: every entry under `path`. |
+| `status` | string | no | The frontmatter field the columns come from. Default `status`. |
+| `columns` | string[] | no | Sets the order and adds columns that may be empty. It never hides a value: one found but not listed still gets a column. |
+| `lane` | string | no | The field that groups cards into rows. Left out: no lanes. |
+| `lanes` | string[] | no | Lane order, by the rule of `columns`. |
+| `blockers` | string | no | The field naming what a card waits on. Default `blockers`. |
+
+A `[[graph]]` shows the entries under a folder and the links between them:
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `id` | string | yes | As a board's. Graph ids are their own namespace: a graph may share an id with a board. |
+| `path` | string | yes | As a board's. |
+| `name` | string | no | As a board's. |
+| `where` | string[] | no | As a board's, but with no default: left out means every entry under `path`. |
+| `neighbours` | bool | no | Also show the entries one link away. Default `false`. |
+
+An app that reads them:
+
+- may ignore a table or a key it does not show, but must not report a key of these tables as unknown;
+- reports what is wrong (a missing `id`, a filter that does not parse, a repeated id, an unknown key) and still shows what it can: it never refuses to open the bundle over them.
 
 ### Entries and frontmatter
 
@@ -127,7 +194,7 @@ Standard markdown links can be **root-absolute** from the bundle root, `[Income]
 
 If you use Obsidian, set it to write standard markdown links: Settings → Files and links → turn off **Use [[Wikilinks]]**, set **New link format** to *Absolute path in vault*, turn on **Automatically update internal links**. Otherwise it emits `[[wikilinks]]`, which neither the format nor `wiki` recognizes, so those links silently vanish from the graph.
 
-`wiki tidy --links` rewrites relative links to root-absolute. A broken link (target not in the bundle) is not malformed, it may be not-yet-written knowledge, so consumers tolerate it; `wiki check` and `wiki unresolved` surface them as a courtesy. A link that resolves *outside* the bundle (climbing above the root, e.g. `../PRD.md` from a nested bundle) is neither an edge nor broken; `wiki check` notes it as an out-of-bundle advisory, and listing that path in `wiki.toml`'s `skip` silences it. Such a path is never resolved on disk (the containment guard that also blocks path traversal).
+`wiki tidy --links` rewrites relative links to root-absolute. A broken link (target not in the bundle) is not malformed, it may be not-yet-written knowledge, so consumers tolerate it; `wiki check` and `wiki unresolved` surface them as a courtesy. A link that resolves *outside* the bundle (climbing above the root, e.g. `../PRD.md` from a nested bundle) is neither an edge nor broken; `wiki check` notes it as an out-of-bundle advisory, and listing that path in `wiki.toml`'s `ignore` silences it. Such a path is never resolved on disk (the containment guard that also blocks path traversal).
 
 `resource:` is a frontmatter pointer, never a body link, and is not treated as an internal link. Entry filenames are slugs (lowercase, hyphenated, no spaces) so links stay simple bare paths; `wiki check` warns on a space in a path. (`wiki` does resolve `<…>`-wrapped links, markdown's way to allow a space, but `wiki check` still flags the spaced filename; `wiki tidy --slug` renames it to a slug, and naming files as slugs from the start avoids it.)
 
