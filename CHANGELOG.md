@@ -4,7 +4,7 @@ Changes to the format. A bundle declares the version it follows with `spec = "â€
 
 ## 0.1, 2026-11-20
 
-The spec brought in line with `wiki` v0.18.0, plus three rules that `wiki` follows from v0.19.0, each marked in the README: nested bundles, `ignore` patterns that match nothing, and `tidy --slug` on folder names. Still version 0.1: no bundle that conformed before stops conforming.
+The spec brought in line with `wiki` v0.18.0. It also states one rule that `wiki` follows from v0.19.0: `ignore` patterns that match nothing. Two more come in a later release: nested bundles, and `tidy --slug` on folder names. Each is marked in the README. Still version 0.1: no bundle that conformed before stops conforming.
 
 ### Added
 
@@ -20,9 +20,9 @@ The spec brought in line with `wiki` v0.18.0, plus three rules that `wiki` follo
 
 ### Changed
 
-- **Nested bundles:** a folder holding its own `wiki.toml` is a separate bundle, and the bundle around it skips it (`wiki` v0.19.0 and later). Its files stop being entries of the outer bundle, and a link into it is read like a link to an ignored file.
+- **Nested bundles:** a folder holding its own `wiki.toml` is a separate bundle, and the bundle around it skips it (a later release of `wiki`). Its files stop being entries of the outer bundle, and a link into it is read like a link to an ignored file.
 - **Links are relative** to the linking file in their canonical form, as `wiki` writes them since v0.7.0 (it was root-absolute). Obsidian's link format is *Relative path to file*.
-- **Slugs are recommended, not required.** The rule is no spaces in a path, which `wiki tidy --slug` fixes in folder names too from v0.19.0.
+- **Slugs are recommended, not required.** The rule is no spaces in a path, which `wiki tidy --slug` fixes in folder names too from a later release of `wiki`.
 - **The checkbox list is a *task list*.** A *board* is now a `[[board]]` view.
 - **The repos** are spec, wiki, skills and wiki-shell. The template repo plan is retired: `wiki init --shape` writes the starters.
 

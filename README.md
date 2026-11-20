@@ -73,8 +73,8 @@ my-kb/                       # the bundle root == the content root
 
 - **`wiki.toml`** (tracked) marks the bundle root. The CLI walks up from the working directory to find it, the same way git finds `.git`. It holds the bundle's config: see [`wiki.toml`](#wikitoml).
 - **`.wiki/`** is reserved for a tool's local cache, the same idea as `.git`: never committed, and safe to delete.
-- **Content** is every `.md` file under the bundle root. The scanner indexes only markdown, skips hidden directories, any folder holding its own `wiki.toml` (a nested bundle, below; `wiki` v0.19.0 and later), and any path matched by `wiki.toml`'s `ignore`, so the cache (`.wiki/`), viewer artifacts (`.obsidian/`), and declared non-entries (`AGENTS.md`, a `README`) never become entries — absent from `list`/`search`/the graph and raising no `check` issue, though a link *to* an ignored file still resolves on disk and so is not broken. Hand someone the bundle and they hold a clean, self-contained knowledge base; Obsidian opens it as a vault (set it to write standard links: see [Links](#links)).
-- **Nested bundles** (`wiki` v0.19.0 and later). A folder holding its own `wiki.toml` is a separate bundle, with its own config. The bundle around it skips that folder entirely, the way git skips a nested repository: its files are not entries of the outer bundle. For links into it, see [Links](#links).
+- **Content** is every `.md` file under the bundle root. The scanner indexes only markdown, skips hidden directories, any folder holding its own `wiki.toml` (a nested bundle, below; a later release of `wiki`), and any path matched by `wiki.toml`'s `ignore`, so the cache (`.wiki/`), viewer artifacts (`.obsidian/`), and declared non-entries (`AGENTS.md`, a `README`) never become entries — absent from `list`/`search`/the graph and raising no `check` issue, though a link *to* an ignored file still resolves on disk and so is not broken. Hand someone the bundle and they hold a clean, self-contained knowledge base; Obsidian opens it as a vault (set it to write standard links: see [Links](#links)).
+- **Nested bundles** (a later release of `wiki`). A folder holding its own `wiki.toml` is a separate bundle, with its own config. The bundle around it skips that folder entirely, the way git skips a nested repository: its files are not entries of the outer bundle. For links into it, see [Links](#links).
 
 ### `wiki.toml`
 
@@ -213,7 +213,7 @@ Every reader resolves a link's destination the same way:
 
 A broken link (target not in the bundle) is not malformed, it may be not-yet-written knowledge, so consumers tolerate it; `wiki check` and `wiki unresolved` surface them as a courtesy. A link that resolves *outside* the bundle (climbing above the root, e.g. `../PRD.md` from a nested bundle) is neither an edge nor broken; `wiki check` notes it as an out-of-bundle advisory, and listing that path in `wiki.toml`'s `ignore` silences it. Such a path is never resolved on disk (the containment guard that also blocks path traversal).
 
-A link to a file inside the bundle that is not an entry, because `ignore` matches it or because it sits in a nested bundle (`wiki` v0.19.0 and later), is read like a link to an image: it resolves when the file exists on disk, so it is not broken and `wiki check` says nothing about it, but it is not an edge of the graph and its `#anchor` is not checked. When the file does not exist, it is a broken link. There is nothing to silence.
+A link to a file inside the bundle that is not an entry, because `ignore` matches it or because it sits in a nested bundle (a later release of `wiki`), is read like a link to an image: it resolves when the file exists on disk, so it is not broken and `wiki check` says nothing about it, but it is not an edge of the graph and its `#anchor` is not checked. When the file does not exist, it is a broken link. There is nothing to silence.
 
 **Frontmatter references.** A frontmatter value whose path ends in `.md` (`epic: /backlog/epics/search.md`, `blockers: [/backlog/login.md]`) is a reference to that entry. It is written **root-absolute**, because it is a key to match on, not a link to click: every entry that points at one epic spells it the same way, so `wiki list --where epic=/backlog/epics/search.md` finds them all. A body link is relative because it must navigate; a frontmatter reference is root-absolute because it must be a stable key. `wiki move --include-frontmatter` rewrites them too. `resource:` points at something outside the bundle and is never a link.
 
@@ -244,7 +244,7 @@ Three different things, often confused:
 
 Prefer a shallow **domain → subdomain** shape: 2-3 levels recommended, no hard cap (`wiki check` warns past three). The exact buckets are yours to choose. Coarse scoping is the folder's job; cross-cutting retrieval is the job of tags and links.
 
-Folder names and entry filenames are best written as **slugs**: lowercase, hyphenated words. That is a recommendation, not a rule. The rule is **no spaces**, because a space breaks a plain link: `wiki check` warns on a space anywhere in a path, and `wiki tidy --slug` replaces it with hyphens: in a file name, and in a folder name too (`wiki` v0.19.0 and later).
+Folder names and entry filenames are best written as **slugs**: lowercase, hyphenated words. That is a recommendation, not a rule. The rule is **no spaces**, because a space breaks a plain link: `wiki check` warns on a space anywhere in a path, and `wiki tidy --slug` replaces it with hyphens: in a file name, and in a folder name too (a later release of `wiki`).
 
 ### Conformance
 
