@@ -36,7 +36,7 @@ Three orthogonal axes classify every entry. Keeping them separate is what keeps 
 
 **Domain rule: if you'd ever want a thing to appear in two places at once, it is a tag, not a folder.**
 
-- **Prefer domain over type for folders.** A trip plan (concept), its flights (dataset), and the trip itself (event) all sit together in `personal/travel/`, sliced by `type` on demand, rather than scattered across `concepts/ events/ datasets/`. This is a lean, not a law (a `tasks/` folder that groups *actions* by actionability is a reasonable workflow choice).
+- **Prefer domain over type for folders.** A trip plan (concept), its flights (dataset), and the trip itself (event) all sit together in `personal/travel/`, sliced by `type` on demand, rather than scattered across `concepts/ events/ datasets/`. This is a lean, not a law (a `backlog/` folder that groups *actions* by actionability is a reasonable workflow choice).
 - **A folder is a single, stable home.** The path is the entry's identity, so moving a file rewrites the links to it. Keep the top levels stable; `wiki move` rewrites links safely when you do move things.
 - **Tags carry everything cross-cutting**: `database`, `2026`, `needs-review`, `feature`.
 
@@ -66,7 +66,7 @@ my-kb/                       # the bundle root == the content root
 │   └── hetzner.md           (type: tool)
 ├── sources/
 │   └── okf-spec.md          (type: source)
-└── tasks/
+└── backlog/
     ├── index.md             (the task list)
     └── renew-passport.md    (type: task)
 ```
@@ -82,7 +82,7 @@ my-kb/                       # the bundle root == the content root
 spec = "0.1"
 types = ["note", "concept", "entity", "event", "tool", "project", "task", "dataset", "source", "draft"]
 ignore = ["AGENTS.md", "CLAUDE.md", "WORKFLOW.md"]
-ignore_orphans = ["tasks/**"]
+ignore_orphans = ["backlog/**"]
 ```
 
 The keys `wiki` reads:
@@ -108,7 +108,7 @@ group_by = "status"
 ```toml
 [[board]]
 id      = "board"
-path    = "/tasks"
+path    = "/backlog"
 where   = ["type=task"]
 columns = ["todo", "in-progress", "done"]
 lane    = "priority"
@@ -125,7 +125,7 @@ A `[[board]]` shows the entries under a folder as cards in columns:
 | Key | Type | Required | Meaning |
 |---|---|---|---|
 | `id` | string | yes | The board's name in addresses: lowercase letters, digits, `_` and `-`, starting with a letter or a digit (`^[a-z0-9][a-z0-9_-]*$`). Unique among boards. |
-| `path` | string | yes | The folder, from the bundle root (`/tasks`; `/` is the whole bundle). Cards are the entries anywhere under it. |
+| `path` | string | yes | The folder, from the bundle root (`/backlog`; `/` is the whole bundle). Cards are the entries anywhere under it. |
 | `name` | string | no | The title on screen. Left out, the app names it from the folder. |
 | `where` | string[] | no | Filters, in `wiki list --where` spelling, all must match. Left out: `["type=task"]`. `[]`: every entry under `path`. |
 | `status` | string | no | The frontmatter field the columns come from. Default `status`. |
@@ -299,7 +299,7 @@ Four repos, each with its own release cadence:
 - **`agentic-wiki/skills`**: the operating manuals, installed into an agent's skill directory, evolving independently of the tool.
 - **`agentic-wiki/wiki-shell`**: WikiShell, a web UI for a bundle: read it in a browser, follow the links, tick the checkboxes, and see its boards and graphs.
 
-The CLI is built, tested, and dogfooded. This repo dogfoods the format itself: its roadmap lives under [`tasks/`](tasks/index.md), an agentic-wiki bundle operated by `wiki` (`wiki checkboxes`, `wiki list --where type=task`, `wiki check`).
+The CLI is built, tested, and dogfooded. This repo dogfoods the format itself: its roadmap lives under [`backlog/`](backlog/index.md), an agentic-wiki bundle operated by `wiki` (`wiki checkboxes`, `wiki list --where type=task`, `wiki check`).
 
 ## Origins
 
